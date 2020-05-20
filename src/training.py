@@ -17,8 +17,9 @@ MEM_REFILL = 250
 C = 150
 EPOCHS = 1600
 PRINT = 100
+WEIGHTS_PATH = ''
 
-sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
+sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
 def train(q, q_target, memory, optimizer):
@@ -46,6 +47,12 @@ def unsqueeze(state):
 
 if __name__ == '__main__':
     q = DQNetwork()
+
+    try:
+        q.load_state_dict(torch.load(WEIGHTS_PATH))
+    except FileNotFoundError:
+        print('No model weights found, initializing random')
+
     q_target = DQNetwork()
     q_target.load_state_dict(q.state_dict())
 
@@ -56,8 +63,8 @@ if __name__ == '__main__':
 
     # number of different simulations to perform
 
-    f = open('/Users/suess_mann/wd/tcqdrl/tca/tests/run_avg.txt', 'w')
-    print("step, av_time_wait, av_que_len", file=f)
+    f = open('/Users/suess_mann/wd/tcqdrl/tca/tests/run_avg.csv', 'w')
+    print("epoch, av_time_wait, av_que_len", file=f)
 
     for epoch in np.arange(EPOCHS):
         eps = max(0.01, 0.08 - 0.01*(epoch/200))
@@ -86,7 +93,8 @@ if __name__ == '__main__':
             if step % PRINT == 0:
                 print(f"EPOCH: {epoch}, step: {step}, "
                       f"average waiting: {info[0]}, average queue size: {info[1]}")
-                print(f"{step}, {info[0]}, {info[1]}", file=f)
+                print(f"{epoch}, f"{},{info[0]}, {info[1]}", file=f)
+                f.flush()
 
             step += 1
         
@@ -98,7 +106,7 @@ if __name__ == '__main__':
 
         torch.save(q.state_dict(), '/Users/suess_mann/wd/tcqdrl/tca/saved_model/dqn.pt')
 
-        print(f"EPOCH {epoch} finished in {start_time - time.time()}")
+        print(f"EPOCH {epoch} finished in {(time.time() - start_time)/60}")
 
     f.close()
     print('finished training')

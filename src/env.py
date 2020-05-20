@@ -36,7 +36,7 @@ class SumoIntersection:
         self.waiting_time_float_av.append(self.waiting_time)
         self.queue_av.append(self.queue)
         return np.round(np.average(self.waiting_time_float_av), 2), \
-               np.round(np.average(self.queue), 2)
+               np.round(np.average(self.queue_av), 2)
 
     def _tl_control(self, phase):
         self.tl_state = np.zeros((4))
@@ -117,10 +117,10 @@ class SumoIntersection:
             self.vel_matrix[r, c, d] = car_speed
 
     def _get_reward(self):
-        if self.r_q == self._get_length():
+        if self.r_q == self.queue:
             self.r_q = 0
         else:
-            self.r_q = self.waiting_time - self.r_q
+            self.r_q = self.queue - self.r_q
 
         if self.r_w == self.waiting_time:
             self.r_w = 0
@@ -148,6 +148,7 @@ class SumoIntersection:
         self.queue = 0
         self.old_phase = a
 
+        self._get_length()
         self._get_state()
         self.r = self._get_reward()
 

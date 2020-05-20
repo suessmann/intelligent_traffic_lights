@@ -11,10 +11,10 @@ LEARNING_RATE = 0.0005
 GAMMA = 0.98
 BUFFER_LIMIT = 50000
 BATCH_SIZE = 32
-SIM_LEN = 4500
+SIM_LEN = 150
 MEM_REFILL = 250
 C = 50
-EPOCHS = 500
+EPOCHS = 1
 
 sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
@@ -74,14 +74,14 @@ if __name__ == '__main__':
             memory.add((s, a, r, s_prime))
             s = s_prime
 
-            if memory.size > 33:
+            if memory.size > 5000:
                 train(q, q_target, memory, optimizer)
 
             if env.time % C == 0:
                 q_target.load_state_dict(q.state_dict())
                 print(f"EPOCH: {n_epi}, step: {env.time}, total time waiting: {r},"
                       f"running average of 100: {info}")
-                print(info, sep=',', file=f)
+                print(str(info), sep=',', file=f)
 
 
 

@@ -2,7 +2,6 @@ import traci
 import numpy as np
 import random
 from generator import generate
-from collections import deque
 
 PHASE_NS_GREEN = 0
 PHASE_NS_YELLOW = 1
@@ -19,27 +18,35 @@ class SumoIntersection:
         self.sumoCmd = [path_bin, "-c", path_cfg]
         traci.start(self.sumoCmd)
 
+        self.done = False
         self.path_cfg = path_cfg
         self.max_steps = max_steps
-        self.cum_queue = 0
         self.time = 0
         self.old_phase = 0
-        generate(self.max_steps, self.max_steps // 3)
 
-        self.waiting_time_float_av = deque(maxlen=100)
+        self.r_w = 0
+        self.r_q = 0
+
+        generate(self.max_steps, self.max_steps//2)
+
+        self.waiting_time_float_av = []
+        self.queue_av = []
 
     def _get_info(self):
         self.waiting_time_float_av.append(self.waiting_time)
-        return np.average(self.waiting_time_float_av)
+        self.queue_av.append(self.queue)
+        return np.round(np.average(self.waiting_time_float_av), 2), \
+               np.round(np.average(self.queue), 2)
 
     def _tl_control(self, phase):
         self.tl_state = np.zeros((4))
         if phase != self.old_phase:
             yellow_phase_code = self.old_phase * 2 + 1
             traci.trafficlight.setPhase("TL", yellow_phase_code)
-            for i in range(0, 3):  # 3 is a yellow duration
+            for i in range(5):  # 5 is a yellow duration
                 traci.simulationStep()
                 self.time += 1
+
         self.tl_state[phase] = 1
 
         if phase == 0:
@@ -51,8 +58,16 @@ class SumoIntersection:
         elif phase == 3:
             traci.trafficlight.setPhase("TL", PHASE_EWL_GREEN)
 
+        for i in range(2):  # 2 is a duration of green light
+            traci.simulationStep()
+            self.time += 1
+
     def _get_length(self):
-        self.queue = self.pos_matrix.sum()
+        halt_N = traci.edge.getLastStepHaltingNumber("N2TL")
+        halt_S = traci.edge.getLastStepHaltingNumber("S2TL")
+        halt_E = traci.edge.getLastStepHaltingNumber("E2TL")
+        halt_W = traci.edge.getLastStepHaltingNumber("W2TL")
+        self.queue = halt_N + halt_S + halt_E + halt_W
 
     def _get_time(self, car_id):
         self.waiting_time += traci.vehicle.getWaitingTime(car_id)
@@ -101,38 +116,47 @@ class SumoIntersection:
             self.pos_matrix[r, c, d] = 1
             self.vel_matrix[r, c, d] = car_speed
 
+    def _get_reward(self):
+        if self.r_q == self._get_length():
+            self.r_q = 0
+        else:
+            self.r_q = self.waiting_time - self.r_q
+
+        if self.r_w == self.waiting_time:
+            self.r_w = 0
+        else:
+            self.r_w = self.waiting_time - self.r
+
+        return self.r_w * 0.5 + self.r_q * 0.5
+
     def reset(self):
         generate(self.max_steps, self.max_steps // 3)
-        self.cum_queue = 0
         self.time = 0
         self.old_phase = 0
+        self.done = False
         traci.load(['-c', self.path_cfg])
         traci.simulationStep()
 
 
     def step(self, a): # обнулить все
-        self.time += 1
-        traci.simulationStep()
+        self._tl_control(a)  # traci.steps are here
+        # traci.simulationStep()
 
-        self.waiting_time = 0
-        self.queue = 0
         self.pos_matrix = np.zeros((4, 15, 4))  # rows, cols, depth
         self.vel_matrix = np.zeros((4, 15, 4))
-
-        self._get_state()
-        self._get_length()
-        self._tl_control(a)
-
+        self.waiting_time = 0
+        self.queue = 0
         self.old_phase = a
 
-        s_prime = (self.pos_matrix, self.vel_matrix, self.tl_state)
+        self._get_state()
+        self.r = self._get_reward()
 
-        r = (self.queue, self.waiting_time)
-        done = False
-        info = self._get_info()
-        # info = 0
+        info = self._get_info() # [0] av time, [1]: av queue
 
         if self.time >= self.max_steps:
-            done = True
+            self.done = True
 
-        return s_prime, r, done, info
+        return (self.pos_matrix, self.vel_matrix, self.tl_state), \
+               -self.r, \
+               self.done, \
+               info  # s_prime, r, done, info

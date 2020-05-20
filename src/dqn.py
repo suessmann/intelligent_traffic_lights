@@ -32,7 +32,7 @@ class DQNetwork(nn.Module):
         self.classifier = nn.Sequential(
                 nn.Linear(128, 4),
                 # nn.Softmax(dim=-1)
-                nn.ReLU()
+                # nn.ReLU()
                 )
 
 

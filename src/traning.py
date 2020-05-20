@@ -14,8 +14,7 @@ BATCH_SIZE = 32
 SIM_LEN = 4500
 MEM_REFILL = 250
 C = 50
-random.seed(42)
-EPOCHS = 100
+EPOCHS = 500
 
 sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
@@ -55,6 +54,7 @@ if __name__ == '__main__':
 
     # number of different simulations to perform
 
+    f = open('/Users/suess_mann/wd/tcqdrl/tca/tests/run_avg.txt', 'w')
 
     for n_epi in np.arange(EPOCHS):
         eps = max(0.01, 0.08 - 0.01*(n_epi/200))
@@ -69,17 +69,20 @@ if __name__ == '__main__':
             s_prime, r, done, info = env.step(a)
 
             #  TODO: сделать вот тут по-человечески
-            info = (r[0], r[1])
+            # info = (r[0], r[1])
             r = r[1]
             memory.add((s, a, r, s_prime))
             s = s_prime
 
-            if memory.size > 8000:
+            if memory.size > 33:
                 train(q, q_target, memory, optimizer)
 
             if env.time % C == 0:
                 q_target.load_state_dict(q.state_dict())
-                print(f"EPOCH: {n_epi}, step: {env.time}, queue: {info[0]}, total time waiting: {info[1]}")
+                print(f"EPOCH: {n_epi}, step: {env.time}, total time waiting: {r},"
+                      f"running average of 100: {info}")
+                print(info, sep=',', file=f)
+
 
 
 
@@ -87,5 +90,7 @@ if __name__ == '__main__':
         if n_epi%MEM_REFILL == 0 and n_epi != 0:
             memory.refill()
 
+    f.close()
+    torch.save(q.state_dict(), '/Users/suess_mann/wd/tcqdrl/tca/saved_model/dqn.pt')
 
 

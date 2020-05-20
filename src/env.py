@@ -1,8 +1,8 @@
 import traci
 import numpy as np
 import random
-import torch
 from generator import generate
+from collections import deque
 
 PHASE_NS_GREEN = 0
 PHASE_NS_YELLOW = 1
@@ -26,8 +26,11 @@ class SumoIntersection:
         self.old_phase = 0
         generate(self.max_steps, self.max_steps // 3)
 
+        self.waiting_time_float_av = deque(maxlen=100)
+
     def _get_info(self):
-        pass
+        self.waiting_time_float_av.append(self.waiting_time)
+        return np.average(self.waiting_time_float_av)
 
     def _tl_control(self, phase):
         self.tl_state = np.zeros((4))
@@ -124,10 +127,10 @@ class SumoIntersection:
 
         s_prime = (self.pos_matrix, self.vel_matrix, self.tl_state)
 
-        r = (-self.queue, -self.waiting_time)
+        r = (self.queue, self.waiting_time)
         done = False
-        # info = self._get_info()
-        info = 0
+        info = self._get_info()
+        # info = 0
 
         if self.time >= self.max_steps:
             done = True

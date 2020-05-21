@@ -17,9 +17,9 @@ MEM_REFILL = 250
 C = 150
 EPOCHS = 1600
 PRINT = 100
-WEIGHTS_PATH = '/Users/suess_mann/wd/tcqdrl/tca/saved_model/dqn.pt'
+WEIGHTS_PATH = ''
 
-sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
+sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
 def train(q, q_target, memory, optimizer, done_mask):
@@ -58,7 +58,6 @@ if __name__ == '__main__':
 
     memory = DQNBuffer(BUFFER_LIMIT)
     env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN)
-
     optimizer = torch.optim.RMSprop(q.parameters(), lr=LEARNING_RATE)
 
     # number of different simulations to perform
@@ -84,7 +83,6 @@ if __name__ == '__main__':
 
             memory.add((s, a, r, s_prime))
             s = s_prime
-
             if memory.size > BATCH_SIZE:
                 if done:
                     done_mask = 0.0

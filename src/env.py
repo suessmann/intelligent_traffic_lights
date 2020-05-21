@@ -15,10 +15,9 @@ PHASE_EWL_YELLOW = 7
 
 
 class SumoIntersection:
-    def __init__(self, ip, port, max_steps, path_bin=0, path_cfg=0):
-        # self.sumoCmd = [path_bin, "-c", path_cfg]
-        # traci.start(self.sumoCmd, label='sim')
-        self.traci_api = traci.connect(port=port, host=ip)
+    def __init__(self, path_bin, path_cfg, max_steps):
+        self.sumoCmd = [path_bin, "-c", path_cfg]
+        traci.start(self.sumoCmd, label='sim')
 
         self.done = False
         self.path_cfg = path_cfg

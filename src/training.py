@@ -17,19 +17,19 @@ MEM_REFILL = 250
 C = 150
 EPOCHS = 1600
 PRINT = 100
-WEIGHTS_PATH = ''
+WEIGHTS_PATH = '/Users/suess_mann/wd/tcqdrl/tca/saved_model/dqn.pt'
 
-sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
+sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
-def train(q, q_target, memory, optimizer):
+def train(q, q_target, memory, optimizer, done_mask):
     # for i in range(10):
     s, a, r, s_prime = memory.sample(BATCH_SIZE)
 
     q_out = q(s)
     q_a = q_out.gather(1, a)
     max_q_prime = q_target(s_prime).max(1)[0].unsqueeze(1)
-    target = r + GAMMA * max_q_prime
+    target = r + GAMMA * max_q_prime * done_mask
     criterion = nn.MSELoss()
     loss = criterion(q_a, target)
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     # number of different simulations to perform
 
     f = open('/Users/suess_mann/wd/tcqdrl/tca/tests/run_avg.csv', 'w')
-    print("epoch, av_time_wait, av_que_len", file=f)
+    # print("epoch, av_time_wait, av_que_len", file=f)
 
     for epoch in np.arange(EPOCHS):
         eps = max(0.01, 0.08 - 0.01*(epoch/200))
@@ -77,6 +77,7 @@ if __name__ == '__main__':
         done = False
 
         start_time = time.time()
+        done_mask = 1.0
         while not done:
             a = q.predict(unsqueeze(s), eps)
             s_prime, r, done, info = env.step(a)
@@ -85,7 +86,9 @@ if __name__ == '__main__':
             s = s_prime
 
             if memory.size > BATCH_SIZE:
-                train(q, q_target, memory, optimizer)
+                if done:
+                    done_mask = 0.0
+                train(q, q_target, memory, optimizer, done_mask)
 
             if step % C == 0:
                 q_target.load_state_dict(q.state_dict())
@@ -93,7 +96,7 @@ if __name__ == '__main__':
             if step % PRINT == 0:
                 print(f"EPOCH: {epoch}, step: {step}, "
                       f"average waiting: {info[0]}, average queue size: {info[1]}")
-                print(f"{epoch}, f"{},{info[0]}, {info[1]}", file=f)
+                print(f"{epoch}, f{step}, {info[0]}, {info[1]}", file=f)
                 f.flush()
 
             step += 1

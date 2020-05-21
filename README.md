@@ -3,6 +3,12 @@ Here I am trying to teach a computer how to effectively change signals of traffi
 
 ![SUMO](./img/intersection.jpg)
 
+# The idea and results
+TBD..
+
+yet look at what the model does after 100 epochs of training:
+![sumo undertrained](./img/intersection_undertrained.gif)
+
 # References
 Genders, Wade, and Saiedeh Razavi. "Using a deep reinforcement learning agent for traffic signal control." arXiv preprint arXiv:1611.01142 (2017).
 

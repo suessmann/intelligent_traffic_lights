@@ -1,6 +1,7 @@
 from dqn import DQNetwork
 from env import SumoIntersection
 from memory import DQNBuffer
+from data_storage import StoreState
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -22,13 +23,13 @@ WEIGHTS_PATH = ''
 sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
-def train(q, q_target, memory, optimizer, done_mask):
+def train(q, q_target, memory, optimizer):
     # for i in range(10):
-    s, a, r, s_prime = memory.sample(BATCH_SIZE)
+    state, a, r, state_prime, done_mask = memory.sample(BATCH_SIZE)
 
-    q_out = q(s)
+    q_out = q(state)
     q_a = q_out.gather(1, a)
-    max_q_prime = q_target(s_prime).max(1)[0].unsqueeze(1)
+    max_q_prime = q_target(state_prime).max(1)[0].unsqueeze(1)
     target = r + GAMMA * max_q_prime * done_mask
     criterion = nn.MSELoss()
     loss = criterion(q_a, target)
@@ -36,13 +37,6 @@ def train(q, q_target, memory, optimizer, done_mask):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-
-def unsqueeze(state):
-    state = (torch.from_numpy(np.array(state[0], dtype=np.float32)).unsqueeze(0).reshape(1, 4, 4, 15),
-             torch.from_numpy(np.array(state[1], dtype=np.float32)).unsqueeze(0).reshape(1, 4, 4, 15),
-             torch.from_numpy(np.array(state[2], dtype=np.float32)).unsqueeze(0)
-             )
-    return state
 
 
 if __name__ == '__main__':
@@ -63,7 +57,7 @@ if __name__ == '__main__':
     # number of different simulations to perform
 
     f = open('/Users/suess_mann/wd/tcqdrl/tca/tests/run_avg.csv', 'w')
-    # print("epoch, av_time_wait, av_que_len", file=f)
+    print("epoch, av_time_wait, av_que_len", file=f)
 
     for epoch in np.arange(EPOCHS):
         eps = max(0.01, 0.08 - 0.01*(epoch/200))
@@ -72,21 +66,28 @@ if __name__ == '__main__':
         if epoch != 0:
             env.reset()
 
-        s, _, _, _ = env.step(0)
+        state, _, _, _ = env.step(0)
         done = False
 
         start_time = time.time()
         done_mask = 1.0
-        while not done:
-            a = q.predict(unsqueeze(s), eps)
-            s_prime, r, done, info = env.step(a)
 
-            memory.add((s, a, r, s_prime))
-            s = s_prime
+        while not done:
+            a = q.predict(state.as_tuple, eps)
+            state_prime, r, done, info = env.step(a)
+
+            if done:
+                done_mask = 0.0
+
+            memory.add((state.position, state.speed,
+                        state.tl, state_prime.position,
+                        state_prime.speed, state_prime.tl,
+                        a, r, done_mask))
+
+            state = state_prime # state = state_prime
+
             if memory.size > BATCH_SIZE:
-                if done:
-                    done_mask = 0.0
-                train(q, q_target, memory, optimizer, done_mask)
+                train(q, q_target, memory, optimizer)
 
             if step % C == 0:
                 q_target.load_state_dict(q.state_dict())

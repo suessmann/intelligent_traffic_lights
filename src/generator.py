@@ -5,7 +5,7 @@ import math
 
 def generate(max_steps, n_cars):
     # np.random.seed(seed)  # make tests reproducible
-
+    n_cars = int(scipy.stats.invweibull.rvs(1, loc=n_cars, scale=50))
     # the generation of cars is distributed according to a weibull distribution
     timings = np.random.weibull(2, n_cars)
     timings = np.sort(timings)

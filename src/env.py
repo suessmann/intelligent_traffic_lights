@@ -17,7 +17,7 @@ PHASE_EWL_YELLOW = 7
 
 
 class SumoIntersection:
-    def __init__(self, path_bin, path_cfg, max_steps):
+    def __init__(self, path_bin, path_cfg, max_steps, n_cars):
         self.sumoCmd = [path_bin, "-c", path_cfg]
         traci.start(self.sumoCmd)
         self.traci_api = traci.getConnection()
@@ -26,25 +26,42 @@ class SumoIntersection:
         self.max_steps = max_steps
         self.time = 0
         self.old_phase = 0
+        self.waiting_time = 0
+        self.queue = 0
+
+        self.n_cars = n_cars
 
         self.done = False
         self.r_w = 0
         self.r_q = 0
 
-        generate(self.max_steps, self.max_steps//2)
+        generate(self.max_steps, n_cars)
 
-        self.waiting_time_float_av = deque(maxlen=1000)
-        self.queue_av = deque(maxlen=1000)
+        self.waiting_time_float_av = deque(maxlen=max_steps)
+        self.queue_float_av = deque(maxlen=max_steps)
+        self.waiting_time_av = []
+        self.queue_av = []
 
         self.data = StoreState()
 
     def _get_info(self):
+        self._get_time()
+        self._get_length()
+
         self.waiting_time_float_av.append(self.waiting_time)
+        self.queue_float_av.append(self.queue)
+        self.waiting_time_av.append(self.waiting_time)
         self.queue_av.append(self.queue)
         return np.round(np.mean(self.waiting_time_float_av), 2), \
-               np.round(np.mean(self.queue_av), 2)
+               np.round(np.mean(self.queue_float_av), 2), \
+               np.round(np.mean(self.waiting_time_av)), \
+               np.round(np.mean(self.queue_av))
 
     def _tl_control(self, phase):
+        if (self.time + 7) >= self.max_steps:
+            self.done = True
+            return
+
         self.data.s_tl = torch.zeros((1, 1, 4))
         if phase != self.old_phase:
             yellow_phase_code = self.old_phase * 2 + 1
@@ -101,7 +118,7 @@ class SumoIntersection:
 
             if lane_pos > 98:
                 continue
-                
+
             # distance in meters from the traffic light -> mapping into cells
             for i, dist in enumerate(np.arange(0, 99, 7)):
                 if lane_pos < dist:
@@ -122,21 +139,20 @@ class SumoIntersection:
             self.data.s_speed[0, d, r, c] = car_speed
 
     def _get_reward(self):
-        # if self.r_q == self.queue:
-        #     self.r_q = 0
-        # else:
-        #     self.r_q = self.queue - self.r_q
+        if self.time < 3:
+            return 0
 
-        if self.r_w == self.waiting_time:
-            self.r_w = 0
-        else:
-            self.r_w = self.waiting_time - self.r_w
+        self.r_q = self.queue_av[-2] - self.queue_av[-1]
 
-        #return #self.r_w * 0.5 + self.r_q * 0.5
-        return self.r_w
+        if self.r_q < 0:
+            self.r_q *= 1.5
+        if self.r_q == 0:
+            self.r_q = -10
+
+        return self.r_q
 
     def reset(self):
-        generate(self.max_steps, self.max_steps // 3)
+        generate(self.max_steps, self.n_cars)
         self.time = 0
         self.old_phase = 0
         self.done = False
@@ -144,24 +160,20 @@ class SumoIntersection:
         self.traci_api.simulationStep()
 
 
-    def step(self, a): # обнулить все
+    def step(self, a):
         self._tl_control(a)  # self.traci_api.steps are here
 
         self.data.s_position = torch.zeros((1, 4, 4, 15))  # depth, rows, cols
         self.data.s_speed = torch.zeros((1, 4, 4, 15))
         self.old_phase = a
+        info = self._get_info()  # [0] av time, [1]: av queue
 
-        self._get_length()
-        self._get_time()
+
+
         self._get_state()
         self.r = self._get_reward()
 
-        info = self._get_info() # [0] av time, [1]: av queue
-
-        if self.time >= self.max_steps:
-            self.done = True
-
-        return self.data, -self.r, self.done, info
+        return self.data, self.r, self.done, info
         # return self.pos_matrix, self.vel_matrix, self.tl_state, \
         #         \
         #        self.done, \

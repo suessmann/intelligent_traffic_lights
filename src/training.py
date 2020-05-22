@@ -18,9 +18,10 @@ MEM_REFILL = 250
 C = 150
 EPOCHS = 1600
 PRINT = 100
+N_CARS=2250
 WEIGHTS_PATH = ''
 
-sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
+sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
 def train(q, q_target, memory, optimizer):
@@ -51,14 +52,15 @@ if __name__ == '__main__':
     q_target.load_state_dict(q.state_dict())
 
     memory = DQNBuffer(BUFFER_LIMIT)
-    env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN)
+    env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, N_CARS)
     optimizer = torch.optim.RMSprop(q.parameters(), lr=LEARNING_RATE)
 
     # number of different simulations to perform
-
+    total_time = time.time()
     f = open('/Users/suess_mann/wd/tcqdrl/tca/tests/run_avg.csv', 'w')
-    print("epoch, av_time_wait, av_que_len", file=f)
+    print("epoch,step,mov_wait,mov_que,mean_w,mean_que,r", file=f)
 
+    i=0
     for epoch in np.arange(EPOCHS):
         eps = max(0.01, 0.08 - 0.01*(epoch/200))
         step = 0
@@ -83,8 +85,8 @@ if __name__ == '__main__':
                         state.tl, state_prime.position,
                         state_prime.speed, state_prime.tl,
                         a, r, done_mask))
-
-            state = state_prime # state = state_prime
+            print(r)
+            state = state_prime 
 
             if memory.size > BATCH_SIZE:
                 train(q, q_target, memory, optimizer)
@@ -94,12 +96,13 @@ if __name__ == '__main__':
 
             if step % PRINT == 0:
                 print(f"EPOCH: {epoch}, step: {step}, "
-                      f"average waiting: {info[0]}, average queue size: {info[1]}")
-                print(f"{epoch}, f{step}, {info[0]}, {info[1]}", file=f)
+                      f"moving waiting: {info[0]}, moving queue: {info[1]},"
+                      f"mean waiting: {info[2]}, mean queue: {info[3]}")
+                print(f"{epoch},{i},{info[0]},{info[1]},{info[2]},{info[3]},{r}", file=f)
                 f.flush()
 
             step += 1
-        
+            i += 1
 
 
         #  clear memory each MEM_REFILL epoch
@@ -108,7 +111,8 @@ if __name__ == '__main__':
 
         torch.save(q.state_dict(), '/Users/suess_mann/wd/tcqdrl/tca/saved_model/dqn.pt')
 
-        print(f"EPOCH {epoch} finished in {(time.time() - start_time)/60}")
+        print(f"EPOCH {epoch} finished in {(time.time() - start_time)} sec.,"
+              f"TOTAL time: {time.time() - total_time / 3600} hours")
 
     f.close()
     print('finished training')

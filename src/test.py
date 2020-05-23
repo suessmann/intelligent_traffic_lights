@@ -1,10 +1,6 @@
 from dqn import DQNetwork
 from env import SumoIntersection
-from memory import DQNBuffer
 import torch
-import numpy as np
-import time
-from training import unsqueeze
 
 BATCH_SIZE = 32
 SIM_LEN = 4500
@@ -22,15 +18,16 @@ if __name__ == '__main__':
     except FileNotFoundError:
         print('No model weights found')
 
-    env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN)
+    env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, 2250)
 
-    s, _, _, _ = env.step(0)
+    state, _, _, _ = env.step(0)
     done = False
 
     while not done:
-        a = q.predict(unsqueeze(s), 0)
-        s_prime, r, done, info = env.step(a)
+        a = q.predict(state.as_tuple, 0)
 
+        s_prime, r, done, info = env.step(a)
+        print(r)
         s = s_prime
 
 

@@ -41,21 +41,23 @@ class SumoIntersection:
         self.queue_float_av = deque(maxlen=max_steps)
         self.waiting_time_av = []
         self.queue_av = []
+        self.r_av = []
 
         self.data = StoreState()
 
     def _get_info(self):
-        self._get_time()
+        # self._get_time()
         self._get_length()
 
         self.waiting_time_float_av.append(self.waiting_time)
         self.queue_float_av.append(self.queue)
         self.waiting_time_av.append(self.waiting_time)
         self.queue_av.append(self.queue)
-        return np.round(np.mean(self.waiting_time_float_av), 2), \
+
+        return [np.round(np.mean(self.waiting_time_float_av), 2), \
                np.round(np.mean(self.queue_float_av), 2), \
-               np.round(np.mean(self.waiting_time_av)), \
-               np.round(np.mean(self.queue_av))
+               np.round(np.mean(self.waiting_time_av), 2), \
+               np.round(np.mean(self.queue_av), 2)]
 
     def _tl_control(self, phase):
         if (self.time + 7) >= self.max_steps:
@@ -92,12 +94,8 @@ class SumoIntersection:
         halt_W = self.traci_api.edge.getLastStepHaltingNumber("W2TL")
         self.queue = halt_N + halt_S + halt_E + halt_W
 
-    def _get_time(self):
-        wait_N = self.traci_api.edge.getWaitingTime("N2TL")
-        wait_S = self.traci_api.edge.getWaitingTime("S2TL")
-        wait_E = self.traci_api.edge.getWaitingTime("E2TL")
-        wait_W = self.traci_api.edge.getWaitingTime("W2TL")
-        self.waiting_time = wait_N + wait_S + wait_E + wait_W
+    def _get_time(self, car_id):
+        self.waiting_time += self.traci_api.vehicle.getAccumulatedWaitingTime(car_id)
 
     def _get_state(self):
         car_list = self.traci_api.vehicle.getIDList()
@@ -109,8 +107,11 @@ class SumoIntersection:
         for car_id in car_list:
             lane_id = self.traci_api.vehicle.getLaneID(car_id)
 
+
             if lane_id not in lanes_list:
                 continue
+
+            self._get_time(car_id)
 
             lane_pos = self.traci_api.vehicle.getLanePosition(car_id)
             car_speed = self.traci_api.vehicle.getSpeed(car_id) / 13.89
@@ -139,17 +140,17 @@ class SumoIntersection:
             self.data.s_speed[0, d, r, c] = car_speed
 
     def _get_reward(self):
-        if self.time < 3:
+        if self.time < 4:
             return 0
 
-        self.r_q = self.queue_av[-2] - self.queue_av[-1]
+        self.r_w = self.waiting_time_float_av[-2] - self.waiting_time_float_av[-1]
 
-        if self.r_q < 0:
-            self.r_q *= 1.5
-        if self.r_q == 0:
-            self.r_q = -10
+        if self.r_w < 0:
+            self.r_w *= 1.5
 
-        return self.r_q
+        self.r_av.append(self.r_w)
+
+        return self.r_w
 
     def reset(self):
         generate(self.max_steps, self.n_cars)
@@ -166,15 +167,13 @@ class SumoIntersection:
         self.data.s_position = torch.zeros((1, 4, 4, 15))  # depth, rows, cols
         self.data.s_speed = torch.zeros((1, 4, 4, 15))
         self.old_phase = a
-        info = self._get_info()  # [0] av time, [1]: av queue
-
-
+        self.waiting_time = 0
 
         self._get_state()
-        self.r = self._get_reward()
+        info = self._get_info()  # [0] av time, [1]: av queue
 
+        self.r = self._get_reward()
+        self.r_av.append(self.r)
+
+        info.append(np.round(np.mean(self.r_av), 2))
         return self.data, self.r, self.done, info
-        # return self.pos_matrix, self.vel_matrix, self.tl_state, \
-        #         \
-        #        self.done, \
-        #        info  # s_prime, r, done, info

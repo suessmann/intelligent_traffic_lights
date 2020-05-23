@@ -18,7 +18,7 @@ PHASE_EWL_YELLOW = 7
 
 class SumoIntersection:
     def __init__(self, path_bin, path_cfg, max_steps, n_cars):
-        self.sumoCmd = [path_bin, "-c", path_cfg]
+        self.sumoCmd = [path_bin, "-c", path_cfg, '--waiting-time-memory', "4500"]
         traci.start(self.sumoCmd)
         self.traci_api = traci.getConnection()
 
@@ -157,7 +157,7 @@ class SumoIntersection:
         self.time = 0
         self.old_phase = 0
         self.done = False
-        self.traci_api.load(['-c', self.path_cfg])
+        self.traci_api.load(['-c', self.path_cfg, '--waiting-time-memory', "4500"])
         self.traci_api.simulationStep()
 
 

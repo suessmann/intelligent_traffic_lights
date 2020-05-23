@@ -12,7 +12,7 @@ import time
 LEARNING_RATE = 0.0005
 GAMMA = 0.95
 BUFFER_LIMIT = 50000
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 SIM_LEN = 4500
 MEM_REFILL = 250
 C = 150
@@ -21,7 +21,7 @@ PRINT = 100
 N_CARS=2250
 WEIGHTS_PATH = ''
 
-sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
+sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
 def train(q, q_target, memory, optimizer):
@@ -81,10 +81,11 @@ if __name__ == '__main__':
             if done:
                 done_mask = 0.0
 
-            memory.add((state.position, state.speed,
-                        state.tl, state_prime.position,
-                        state_prime.speed, state_prime.tl,
-                        a, r, done_mask))
+            if step > 100:
+                memory.add((state.position, state.speed,
+                            state.tl, state_prime.position,
+                            state_prime.speed, state_prime.tl,
+                            a, r, done_mask))
 
             state = state_prime
 

@@ -117,11 +117,11 @@ class SumoIntersection:
             car_speed = self.traci_api.vehicle.getSpeed(car_id) / 13.89
             lane_pos = 750 - lane_pos
 
-            if lane_pos > 98:
+            if lane_pos > 105:
                 continue
 
             # distance in meters from the traffic light -> mapping into cells
-            for i, dist in enumerate(np.arange(0, 99, 7)):
+            for i, dist in enumerate(np.arange(7, 106, 7)):
                 if lane_pos < dist:
                     lane_cell = i
                     break
@@ -136,8 +136,8 @@ class SumoIntersection:
                     d = i
                     break
 
-            self.data.s_position[0, d, r, c] = 1
-            self.data.s_speed[0, d, r, c] = car_speed
+            self.data.position[0, d, r, c] = 1  # depth, row, col
+            self.data.speed[0, d, r, c] = car_speed
 
     def _get_reward(self):
         if self.time < 4:
@@ -164,8 +164,8 @@ class SumoIntersection:
     def step(self, a):
         self._tl_control(a)  # self.traci_api.steps are here
 
-        self.data.s_position = torch.zeros((1, 4, 4, 15))  # depth, rows, cols
-        self.data.s_speed = torch.zeros((1, 4, 4, 15))
+        self.data.position = torch.zeros((1, 4, 4, 15))  # depth, rows, cols
+        self.data.speed = torch.zeros((1, 4, 4, 15))
         self.old_phase = a
         self.waiting_time = 0
 

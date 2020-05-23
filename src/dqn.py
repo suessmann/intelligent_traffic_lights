@@ -12,21 +12,21 @@ class DQNetwork(nn.Module):
 
         self.features1 = nn.Sequential(
                 nn.Conv2d(4, 16, 3, stride=(1, 2), padding=(0, 1)),
-                nn.ReLU(),
+                nn.LeakyReLU(),
                 nn.Conv2d(16, 32, 2, stride=(1, 2), padding=(1, 1)),
-                nn.ReLU(),
+                nn.LeakyReLU(),
                 )
         self.features2 = nn.Sequential(
                 nn.Conv2d(4, 16, 3, stride=(1,2), padding=(0, 1)),
-                nn.ReLU(),
+                nn.LeakyReLU(),
                 nn.Conv2d(16, 32, 2, stride=(1,2), padding=(1, 1)),
-                nn.ReLU(),
+                nn.LeakyReLU(),
                 )
         self.features3 = nn.Linear(4, 4)
 
         self.linear_relu1 = nn.Sequential(
-                nn.Linear(32*5*3 + 32*5*3 + 4, 128),
-                nn.ReLU()
+                nn.Linear(32*5*3 + 32*5*3 + 4, 128, bias=True),
+                nn.LeakyReLU()
                 )
 
         self.classifier = nn.Sequential(

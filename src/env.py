@@ -176,4 +176,5 @@ class SumoIntersection:
         self.r_av.append(self.r)
 
         info.append(np.round(np.mean(self.r_av), 2))
+        info.append(self.time)
         return self.data, self.r, self.done, info

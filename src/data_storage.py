@@ -7,8 +7,8 @@ class StoreState:
     """
     Class for storing state variables
 
-    s_* : state
-    s_p_* : state_prime
+    *n_prefix* : current state
+    p_* : prime state
     """
     position: torch.Tensor = torch.zeros((1, 4, 4, 16))
     speed: torch.Tensor = torch.zeros((1, 4, 4, 16))

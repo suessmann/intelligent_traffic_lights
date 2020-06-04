@@ -1,7 +1,7 @@
 # Traffic Control with DL
 Here I am trying to teach a computer how to effectively change signals of traffic lights on an intersection. The repo is updating..
 
-If you are here by any chance, you may watch the process of training here: http://84.201.130.188:6006/
+If you are here by any chance, you may watch the process of training: http://84.201.130.188:6006/
 # The idea and results
 TBD..
 

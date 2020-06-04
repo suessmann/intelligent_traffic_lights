@@ -12,7 +12,7 @@ import random
 import time
 from tqdm import tqdm
 
-LEARNING_RATE = 0.0005
+LEARNING_RATE = 0.005
 GAMMA = 0.95
 BUFFER_LIMIT = 50000
 BATCH_SIZE = 32
@@ -21,10 +21,10 @@ MEM_REFILL = 250
 C = 100000
 EPOCHS = 1600
 PRINT = 100
-N_CARS=2250
+N_CARS=1000
 WEIGHTS_PATH = ''
 
-sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo"
+sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     memory = DQNBuffer(BUFFER_LIMIT)
     env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, N_CARS)
-    optimizer = torch.optim.RMSprop(q.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.Adam(q.parameters(), lr=LEARNING_RATE)
 
     writer = SummaryWriter()
     total_time = time.time()

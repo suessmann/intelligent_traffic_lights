@@ -21,7 +21,7 @@ def generate(max_steps, n_cars):
                                   ((max_new - min_new) / (max_old - min_old)) * (value - max_old) + max_new)
 
     car_gen_steps = np.rint(car_gen_steps)  # round every value to int -> effective steps when a car will be generated
-
+    np.insert(car_gen_steps, 0, 0)
     # produce the file for cars generation, one car per line
     with open("cfg/episode_routes.rou.xml", "w") as routes:
         print("""<routes>

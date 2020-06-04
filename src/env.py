@@ -18,7 +18,7 @@ PHASE_EWL_YELLOW = 7
 
 class SumoIntersection:
     def __init__(self, path_bin, path_cfg, max_steps, n_cars):
-        self.sumoCmd = [path_bin, "-c", path_cfg, '--waiting-time-memory', "4500"]
+        self.sumoCmd = [path_bin, "-c", path_cfg, '--waiting-time-memory', "4500", '--no-step-log', 'true', '-W', 'true']
         traci.start(self.sumoCmd)
         self.traci_api = traci.getConnection()
 
@@ -54,10 +54,10 @@ class SumoIntersection:
         self.waiting_time_av.append(self.waiting_time)
         self.queue_av.append(self.queue)
 
-        return [np.round(np.mean(self.waiting_time_float_av), 2), \
-               np.round(np.mean(self.queue_float_av), 2), \
-               np.round(np.mean(self.waiting_time_av), 2), \
-               np.round(np.mean(self.queue_av), 2)]
+        return [np.mean(self.waiting_time_float_av), \
+               np.mean(self.queue_float_av), \
+               np.mean(self.waiting_time_av), \
+               np.mean(self.queue_av)]
 
     def _tl_control(self, phase):
         if (self.time + 7) >= self.max_steps:
@@ -65,12 +65,17 @@ class SumoIntersection:
             return
 
         self.data.s_tl = torch.zeros((1, 1, 4))
+
         if phase != self.old_phase:
             yellow_phase_code = self.old_phase * 2 + 1
             self.traci_api.trafficlight.setPhase("TL", yellow_phase_code)
-            for i in range(5):  # 5 is a yellow duration
-                self.traci_api.simulationStep()
-                self.time += 1
+
+            if self.traci_api.simulation.getMinExpectedNumber() == 0:
+                done = True
+                return
+
+            self.traci_api.simulationStep(self.time + 5.)
+            self.time += 5
 
         self.data.s_tl[0, 0, phase] = 1
 
@@ -83,9 +88,12 @@ class SumoIntersection:
         elif phase == 3:
             self.traci_api.trafficlight.setPhase("TL", PHASE_EWL_GREEN)
 
-        for i in range(2):  # 2 is a duration of green light
-            self.traci_api.simulationStep()
-            self.time += 1
+        self.traci_api.simulationStep(self.time + 2.)
+        if self.traci_api.simulation.getMinExpectedNumber() == 0:
+            done = True
+            return
+
+        self.time += 2
 
     def _get_length(self):
         halt_N = self.traci_api.edge.getLastStepHaltingNumber("N2TL")
@@ -117,11 +125,11 @@ class SumoIntersection:
             car_speed = self.traci_api.vehicle.getSpeed(car_id) / 13.89
             lane_pos = 750 - lane_pos
 
-            if lane_pos > 105:
+            if lane_pos > 112:
                 continue
 
             # distance in meters from the traffic light -> mapping into cells
-            for i, dist in enumerate(np.arange(7, 106, 7)):
+            for i, dist in enumerate(np.arange(7, 113, 7)):
                 if lane_pos < dist:
                     lane_cell = i
                     break
@@ -145,10 +153,10 @@ class SumoIntersection:
 
         self.r_w = self.waiting_time_float_av[-2] - self.waiting_time_float_av[-1]
 
-        if self.r_w < 0:
-            self.r_w *= 1.5
-
-        self.r_av.append(self.r_w)
+        # if self.r_w < 0:
+        #     self.r_w *= 1.5
+        #
+        # self.r_av.append(self.r_w)
 
         return self.r_w
 
@@ -157,15 +165,15 @@ class SumoIntersection:
         self.time = 0
         self.old_phase = 0
         self.done = False
-        self.traci_api.load(['-c', self.path_cfg, '--waiting-time-memory', "4500"])
+        self.traci_api.load(['-c', self.path_cfg, '--waiting-time-memory', "4500", '--no-step-log', 'true', '-W', 'true'])
         self.traci_api.simulationStep()
 
 
     def step(self, a):
         self._tl_control(a)  # self.traci_api.steps are here
 
-        self.data.position = torch.zeros((1, 4, 4, 15))  # depth, rows, cols
-        self.data.speed = torch.zeros((1, 4, 4, 15))
+        self.data.position = torch.zeros((1, 4, 4, 16))  # depth, rows, cols
+        self.data.speed = torch.zeros((1, 4, 4, 16))
         self.old_phase = a
         self.waiting_time = 0
 
@@ -175,6 +183,6 @@ class SumoIntersection:
         self.r = self._get_reward()
         self.r_av.append(self.r)
 
-        info.append(np.round(np.mean(self.r_av), 2))
+        info.append(np.mean(self.r_av), 2)
         info.append(self.time)
         return self.data, self.r, self.done, info

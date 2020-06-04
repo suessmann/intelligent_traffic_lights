@@ -18,13 +18,13 @@ if __name__ == '__main__':
     except FileNotFoundError:
         print('No model weights found')
 
-    env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, 2250)
+    env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, 1000)
 
     state, _, _, _ = env.step(0)
     done = False
 
     while not done:
-        a = q.predict(state.as_tuple, 0)
+        a = q.predict(state.as_tuple, 0.00)
 
         s_prime, r, done, info = env.step(a)
         print(r)

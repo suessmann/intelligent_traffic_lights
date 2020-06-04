@@ -10,11 +10,11 @@ class StoreState:
     s_* : state
     s_p_* : state_prime
     """
-    position: torch.Tensor = torch.zeros((1, 4, 4, 15))
-    speed: torch.Tensor = torch.zeros((1, 4, 4, 15))
+    position: torch.Tensor = torch.zeros((1, 4, 4, 16))
+    speed: torch.Tensor = torch.zeros((1, 4, 4, 16))
     tl: torch.Tensor = torch.zeros((1, 1, 4))
-    p_position: torch.Tensor = torch.zeros((1, 4, 4, 15))
-    p_speed: torch.Tensor = torch.zeros((1, 4, 4, 15))
+    p_position: torch.Tensor = torch.zeros((1, 4, 4, 16))
+    p_speed: torch.Tensor = torch.zeros((1, 4, 4, 16))
     p_tl: torch.Tensor = torch.zeros((1, 1, 4))
 
     action: 'typing.Any' = 0

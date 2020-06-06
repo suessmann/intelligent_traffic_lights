@@ -12,15 +12,19 @@ class DQNetwork(nn.Module):
 
         self.features1 = nn.Sequential(
                 nn.Conv2d(1, 16, 4, stride=2, padding=1),
+                nn.BatchNorm2d(16),
                 nn.LeakyReLU(),
                 nn.Conv2d(16, 32, 2, stride=1),
-                nn.LeakyReLU(),
+                nn.BatchNorm2d(32),
+                nn.LeakyReLU()
                 )
         self.features2 = nn.Sequential(
                 nn.Conv2d(1, 16, 4, stride=2, padding=1),
+                nn.BatchNorm2d(16),
                 nn.LeakyReLU(),
                 nn.Conv2d(16, 32, 2, stride=1),
-                nn.LeakyReLU(),
+                nn.BatchNorm2d(32),
+                nn.LeakyReLU()
                 )
         # self.features3 = nn.Linear(4, 4)
 
@@ -28,15 +32,16 @@ class DQNetwork(nn.Module):
                 nn.Linear(32*7*7 + 32*7*7 + 4, 128),
                 nn.LeakyReLU(),
                 nn.Dropout(0.2),
-                nn.Linear(128, 128),
+                nn.Linear(128, 64),
                 nn.LeakyReLU(),
                 nn.Dropout(0.2),
-                nn.Linear(128, 128),
-                nn.LeakyReLU()
+                nn.Linear(64, 32),
+                nn.LeakyReLU(),
+                nn.Dropout(0.2)
                 )
 
         self.classifier = nn.Sequential(
-                nn.Linear(128, 4),
+                nn.Linear(32, 4),
                 # nn.Softmax(dim=-1)
                 # nn.ReLU()
                 )
@@ -60,9 +65,9 @@ class DQNetwork(nn.Module):
         return x
 
     def predict(self, state, eps):
-        act = self.forward(state)
         prob = random.random()
         if prob < eps:
             return random.randint(0, 3)
         else:
+            act = self.forward(state)
             return act.argmax().item()

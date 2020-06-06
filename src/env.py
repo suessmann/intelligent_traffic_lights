@@ -18,6 +18,7 @@ PHASE_EWL_YELLOW = 7
 
 class SumoIntersection:
     def __init__(self, path_bin, path_cfg, max_steps, n_cars):
+        self.n_cars_out = generate(max_steps, n_cars)
         self.sumoCmd = [path_bin, "-c", path_cfg, '--waiting-time-memory', "4500", '--no-step-log', 'true', '-W', 'true']
         traci.start(self.sumoCmd)
         self.traci_api = traci.getConnection()
@@ -29,13 +30,15 @@ class SumoIntersection:
         self.waiting_time = 0
         self.queue = 0
 
-        self.n_cars = n_cars
-
         self.done = False
         self.r_w = 0
         self.r_q = 0
+        self.n_cars = n_cars
 
-        generate(self.max_steps, n_cars)
+        self.r_epoch = 0
+        self.w_epoch = 0
+        self.q_epoch = 0
+
 
         self.waiting_time_float_av = deque(maxlen=max_steps)
         self.queue_float_av = deque(maxlen=max_steps)
@@ -53,14 +56,19 @@ class SumoIntersection:
         self.queue_float_av.append(self.queue)
         self.waiting_time_av.append(self.waiting_time)
         self.queue_av.append(self.queue)
+        
+        self.w_epoch += self.waiting_time
+        self.q_epoch += self.queue
 
         return [np.mean(self.waiting_time_float_av), \
                np.mean(self.queue_float_av), \
                np.mean(self.waiting_time_av), \
-               np.mean(self.queue_av)]
+               np.mean(self.queue_av),
+               self.w_epoch,
+               self.q_epoch]
 
     def _tl_control(self, phase):
-        if (self.time + 7) >= self.max_steps:
+        if (self.time + 5) >= (self.max_steps - 50):
             self.done = True
             return
 
@@ -71,7 +79,7 @@ class SumoIntersection:
             self.traci_api.trafficlight.setPhase("TL", yellow_phase_code)
 
             if self.traci_api.simulation.getMinExpectedNumber() == 0:
-                done = True
+                self.done = True
                 return
 
             self.traci_api.simulationStep(self.time + 5.)
@@ -90,7 +98,7 @@ class SumoIntersection:
 
         self.traci_api.simulationStep(self.time + 2.)
         if self.traci_api.simulation.getMinExpectedNumber() == 0:
-            done = True
+            self.done = True
             return
 
         self.time += 2
@@ -151,7 +159,7 @@ class SumoIntersection:
         if self.time < 4:
             return 0
 
-        self.r_w = self.waiting_time_float_av[-2] - self.waiting_time_float_av[-1]
+        self.r_w = 0.85 * self.waiting_time_float_av[-2] - self.waiting_time_float_av[-1]
 
         # if self.r_w < 0:
         #     self.r_w *= 1.5
@@ -161,10 +169,15 @@ class SumoIntersection:
         return self.r_w
 
     def reset(self):
-        generate(self.max_steps, self.n_cars)
+        self.n_cars_out = generate(self.max_steps, self.n_cars)
+
         self.time = 0
         self.old_phase = 0
         self.done = False
+        self.r_epoch = 0
+        self.w_epoch = 0
+        self.q_epoch = 0
+
         self.traci_api.load(['-c', self.path_cfg, '--waiting-time-memory', "4500", '--no-step-log', 'true', '-W', 'true'])
         self.traci_api.simulationStep()
 
@@ -181,8 +194,15 @@ class SumoIntersection:
         info = self._get_info()  # [0] av time, [1]: av queue
 
         self.r = self._get_reward()
+        
         self.r_av.append(self.r)
+        self.r_epoch += self.r
 
-        info.append(np.mean(self.r_av), 2)
+        info.append(np.mean(self.r_av))
+        info.append(self.r_epoch)
         info.append(self.time)
+        if self.done:
+            info.append(self.n_cars_out)
+
         return self.data, self.r, self.done, info
+

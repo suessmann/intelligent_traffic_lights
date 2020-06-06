@@ -54,16 +54,16 @@ class SumoIntersection:
 
         self.waiting_time_float_av.append(self.waiting_time)
         self.queue_float_av.append(self.queue)
-        self.waiting_time_av.append(self.waiting_time)
-        self.queue_av.append(self.queue)
+        # self.waiting_time_av.append(self.waiting_time)
+        # self.queue_av.append(self.queue)
         
         self.w_epoch += self.waiting_time
         self.q_epoch += self.queue
 
         return [np.mean(self.waiting_time_float_av), \
                np.mean(self.queue_float_av), \
-               np.mean(self.waiting_time_av), \
-               np.mean(self.queue_av),
+               self.w_epoch/self.time, \
+               self.q_epoch/self.time,
                self.w_epoch,
                self.q_epoch]
 
@@ -198,7 +198,7 @@ class SumoIntersection:
         self.r_av.append(self.r)
         self.r_epoch += self.r
 
-        info.append(np.mean(self.r_av))
+        info.append(self.r_epoch/self.time)
         info.append(self.r_epoch)
         info.append(self.time)
         if self.done:

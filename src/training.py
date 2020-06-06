@@ -16,24 +16,31 @@ import random
 import time
 from tqdm import tqdm
 
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.00001
 GAMMA = 0.95
-BUFFER_LIMIT = 50000
-BATCH_SIZE = 32
+BUFFER_LIMIT = 500000
+BATCH_SIZE = 16
 SIM_LEN = 4500
-MEM_REFILL = 100
-C = 20
+MEM_REFILL = 200
+C = 10
 EPOCHS = 1600
 PRINT = 10
 N_CARS= 1000
 WEIGHTS_PATH = ''
 
-sumoBinary = "/home/thelak-dev/sumo/bin/sumo"
-sumoCmd = "/home/thelak-dev/tldqn/TCA-DQN/src/cfg/sumo_config.sumocfg"
+sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
+sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
+def weights_init(m):
+    if isinstance(m, DQNetwork):
+        return
+    if not isinstance(m, nn.ReLU) and not isinstance(m, nn.Sequential):
+        torch.nn.init.xavier_uniform(m.weight.data)
+        nn.init.constant(m.bias.data, 0)
 
 def train(q, q_target, memory, optimizer):
     state, a, r, state_prime, done_mask = memory.sample(BATCH_SIZE)
+
     q_out = q(state)
     q_a = q_out.gather(1, a)
     max_q_prime = q_target(state_prime).max(1)[0].unsqueeze(1)
@@ -44,8 +51,8 @@ def train(q, q_target, memory, optimizer):
 
     optimizer.zero_grad()
     loss.backward()
-    #for param in q.parameters():
-    #    param.grad.data.clamp_(-1, 1)
+    for param in q.parameters():
+       param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
     return mse
@@ -56,9 +63,9 @@ def log(epoch, total_steps, info, mse, writer):
     #f.flush()
 
     # tensorboard
-    writer.add_scalar('env_metrics/mean_waiting', info[2], total_steps)
-    writer.add_scalar('env_metrics/mean_queue', info[3], total_steps)
-    writer.add_scalar('env_metrics/mean_reward', info[6], total_steps)
+    # writer.add_scalar('env_metrics/mean_waiting', info[2], total_steps)
+    # writer.add_scalar('env_metrics/mean_queue', info[3], total_steps)
+    # writer.add_scalar('env_metrics/mean_reward', info[6], total_steps)
     writer.add_scalar('loss/loss', mse, total_steps) # 4 5
     #writer.flush()
 
@@ -69,19 +76,18 @@ if __name__ == '__main__':
     try:
         q.load_state_dict(torch.load(WEIGHTS_PATH))
     except FileNotFoundError:
-        print('No model weights found, initializing random')
+        q.apply(weights_init)
+        print('No model weights found, initializing xavier_uniform')
 
     q_target = DQNetwork()
     q_target.load_state_dict(q.state_dict())
 
-    memory = DQNBuffer(BUFFER_LIMIT)
+    memory = DQNBuffer(BUFFER_LIMIT, 0.1)
+
     env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, N_CARS)
     optimizer = torch.optim.RMSprop(q.parameters(), lr=LEARNING_RATE)
 
     writer = SummaryWriter(logdir=f'logs/{int(datetime.now().timestamp())}', flush_secs=1)
-    #total_time = time.time()
-    #f = open('/Users/suess_mann/wd/tcqdrl/tca/tests/run_avg.csv', 'w')
-    #print("epoch,step,mov_wait,mov_que,mean_w,mean_que,r", file=f)
 
 
     mse_mean = 0
@@ -114,6 +120,12 @@ if __name__ == '__main__':
                             state.tl, state_prime.position,
                             state_prime.speed, state_prime.tl,
                             a, r, done_mask))
+                if epoch < 16:
+                    memory.add_positive((state.position, state.speed,
+                            state.tl, state_prime.position,
+                            state_prime.speed, state_prime.tl,
+                            a, r, done_mask))
+
 
             state = state_prime
 
@@ -137,12 +149,16 @@ if __name__ == '__main__':
         if epoch % C == 0 and total_steps != 0:
             q_target.load_state_dict(q.state_dict())
 
+        writer.add_scalar('env_metrics/mean_waiting', info[2], epoch)
+        writer.add_scalar('env_metrics/mean_queue', info[3], epoch)
+        writer.add_scalar('env_metrics/mean_reward', info[6], epoch)
+
         writer.add_scalar('env_metrics/cum_waiting', info[4], epoch)
         writer.add_scalar('env_metrics/cum_queue', info[5], epoch)
         writer.add_scalar('env_metrics/cum_reward', info[7], epoch)
         writer.add_scalar('env_status/n_cars', info[-1], epoch)
         writer.add_scalar('env_status/randomess', eps, epoch) 
 
-        torch.save(q.state_dict(), '/home/thelak-dev/tldqn/TCA-DQN/model/dqn.pt')
+        torch.save(q.state_dict(), '/Users/suess_mann/wd/tcqdrl/tca/saved_model/dqn.pt')
 
     print('finished training')

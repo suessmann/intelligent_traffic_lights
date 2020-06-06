@@ -12,7 +12,7 @@ sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
 if __name__ == '__main__':
     q = DQNetwork()
-
+    q.eval()
     try:
         q.load_state_dict(torch.load(WEIGHTS_PATH))
     except FileNotFoundError:

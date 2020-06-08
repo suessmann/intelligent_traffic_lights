@@ -2,7 +2,7 @@ import sys, os
 sys.path.append(os.path.join('/home/thelak-dev/sumo/tools'))
 
 from datetime import datetime
-from dqn import DQNetwork
+from dqn import DQNetwork, FCQNetwork
 from env import SumoIntersection
 from memory import DQNBuffer
 from data_storage import StoreState
@@ -19,10 +19,10 @@ from tqdm import tqdm
 LEARNING_RATE = 0.00001
 GAMMA = 0.95
 BUFFER_LIMIT = 500000
-BATCH_SIZE = 16
+BATCH_SIZE = 128
 SIM_LEN = 4500
 MEM_REFILL = 200
-C = 10
+C = 100
 EPOCHS = 1600
 PRINT = 10
 N_CARS= 1000
@@ -32,9 +32,7 @@ sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
 sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
 
 def weights_init(m):
-    if isinstance(m, DQNetwork):
-        return
-    if not isinstance(m, nn.ReLU) and not isinstance(m, nn.Sequential):
+    if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
         torch.nn.init.xavier_uniform(m.weight.data)
         nn.init.constant(m.bias.data, 0)
 
@@ -71,18 +69,19 @@ def log(epoch, total_steps, info, mse, writer):
 
 
 if __name__ == '__main__':
-    q = DQNetwork()
-
+    # q = DQNetwork()
+    q = FCQNetwork()
     try:
         q.load_state_dict(torch.load(WEIGHTS_PATH))
     except FileNotFoundError:
         q.apply(weights_init)
         print('No model weights found, initializing xavier_uniform')
 
-    q_target = DQNetwork()
+    # q_target = DQNetwork()
+    q_target = FCQNetwork()
     q_target.load_state_dict(q.state_dict())
 
-    memory = DQNBuffer(BUFFER_LIMIT, 0.1)
+    memory = DQNBuffer(BUFFER_LIMIT, 0)
 
     env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, N_CARS)
     optimizer = torch.optim.RMSprop(q.parameters(), lr=LEARNING_RATE)

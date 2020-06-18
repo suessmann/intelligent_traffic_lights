@@ -68,9 +68,9 @@ class SumoIntersection:
                self.q_epoch]
 
     def _tl_control(self, phase):
-        if (self.time + 5) >= (self.max_steps - 50):
-            self.done = True
-            return
+        #if (self.time + 5) >= (self.max_steps - 50):
+        #    self.done = True
+        #    return
 
         self.data.s_tl = torch.zeros((1, 1, 4))
 
@@ -85,7 +85,7 @@ class SumoIntersection:
             self.traci_api.simulationStep(self.time + 5.)
             self.time += 5
 
-        self.data.s_tl[0, 0, phase] = 1
+        self.data.tl[0, 0, phase] = 1
 
         if phase == 0:
             self.traci_api.trafficlight.setPhase("TL", PHASE_NS_GREEN)
@@ -183,6 +183,7 @@ class SumoIntersection:
 
 
     def step(self, a):
+        self.data.tl = torch.zeros((1, 1, 4))
         self._tl_control(a)  # self.traci_api.steps are here
 
         self.data.position = torch.zeros((1, 4, 4, 16))  # depth, rows, cols

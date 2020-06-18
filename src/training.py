@@ -28,8 +28,8 @@ PRINT = 10
 N_CARS= 1000
 WEIGHTS_PATH = ''
 
-sumoBinary = "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
-sumoCmd = "/Users/suess_mann/wd/tcqdrl/tca/src/cfg/sumo_config.sumocfg"
+sumoBinary = "/home/thelak-dev/sumo/bin/sumo"
+sumoCmd = "/home/thelak-dev/tldqn/exp2/TLC-DQN/src/cfg/sumo_config.sumocfg"
 
 def weights_init(m):
     if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -69,26 +69,26 @@ def log(epoch, total_steps, info, mse, writer):
 
 
 if __name__ == '__main__':
-    # q = DQNetwork()
-    q = FCQNetwork()
+    q = DQNetwork()
+    #q = FCQNetwork()
     try:
         q.load_state_dict(torch.load(WEIGHTS_PATH))
     except FileNotFoundError:
         q.apply(weights_init)
         print('No model weights found, initializing xavier_uniform')
 
-    # q_target = DQNetwork()
-    q_target = FCQNetwork()
+    q_target = DQNetwork()
+    #q_target = FCQNetwork()
     q_target.load_state_dict(q.state_dict())
 
-    memory = DQNBuffer(BUFFER_LIMIT, 0)
+    memory = DQNBuffer(BUFFER_LIMIT, 0.02)
 
     env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, N_CARS)
     optimizer = torch.optim.RMSprop(q.parameters(), lr=LEARNING_RATE)
 
-    writer = SummaryWriter(logdir=f'logs/{int(datetime.now().timestamp())}', flush_secs=1)
+    writer = SummaryWriter(logdir=f'/home/thelak-dev/tldqn/TCA-DQN/src/logs/{int(datetime.now().timestamp())}', flush_secs=1)
 
-
+    min_wait = float('inf')
     mse_mean = 0
     total_steps=0
     pbar = tqdm(total=EPOCHS)
@@ -114,7 +114,7 @@ if __name__ == '__main__':
             if done:
                 done_mask = 0.0
 
-            if r != 0:
+            if r != 0 or step > 60:
                 memory.add((state.position, state.speed,
                             state.tl, state_prime.position,
                             state_prime.speed, state_prime.tl,
@@ -158,6 +158,10 @@ if __name__ == '__main__':
         writer.add_scalar('env_status/n_cars', info[-1], epoch)
         writer.add_scalar('env_status/randomess', eps, epoch) 
 
-        torch.save(q.state_dict(), '/Users/suess_mann/wd/tcqdrl/tca/saved_model/dqn.pt')
+        if info[4] < min_wait and epoch > 50:
+            torch.save(q.state_dict(), f'/home/thelak-dev/tldqn/exp2/TLC-DQN/model/dqn_cnn_{epoch}.pt')
+            min_wait = info[4]
+        if epoch == 1599:
+            torch.save(q.state_dict(), f'/home/thelak-dev/tldqn/exp2/TLC-DQN/model/dqn_cnn_{epoch}.pt')
 
     print('finished training')

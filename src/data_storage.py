@@ -36,5 +36,12 @@ class StoreState:
     def as_tuple(self):
         return (self.position, self.speed, self.tl)
 
+    def swap(self):
+        self.position = self.p_position
+        self.speed = self.p_speed
+        self.tl = self.p_tl
 
+        self.p_position = torch.zeros((1, 4, 4, 16))  # depth, rows, cols
+        self.p_speed = torch.zeros((1, 4, 4, 16))
+        self.p_tl = torch.zeros((1, 1, 4))
 

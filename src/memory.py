@@ -19,8 +19,7 @@ class DQNBuffer:
         self._buffer_positive.append(sample)
 
     def sample(self, n):
-        mini_batch = random.sample(self._buffer, int(np.ceil(n * (1-self.pos)))) + random.sample(self._buffer_positive,
-                                                                                       int(np.floor(n * self.pos)))
+        mini_batch = random.sample(self._buffer, int(np.ceil(n * (1-self.pos)))) + random.sample(self._buffer_positive, int(np.floor(n * self.pos)))
         trans = StoreState(*zip(*mini_batch))  # unzipping
 
         state, state_prime = trans.concat()

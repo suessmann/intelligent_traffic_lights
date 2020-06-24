@@ -77,4 +77,4 @@ src/cfg/
 .DS_Store
 __pycache__/
 
-
+src/logs

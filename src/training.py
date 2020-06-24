@@ -36,7 +36,12 @@ def weights_init(m):
         torch.nn.init.xavier_uniform(m.weight.data)
         nn.init.constant(m.bias.data, 0)
 
-def train(q, q_target, memory, optimizer):
+def soft_update(local_model, target_model, tau):
+        for target_param, local_param in zip(target_model.parameters(),
+                                                       local_model.parameters()):
+                    target_param.data.copy_(tau*local_param.data + (1-tau)*target_param.data)
+
+def train_net(q, q_target, memory, optimizer):
     state, a, r, state_prime, done_mask = memory.sample(BATCH_SIZE)
 
     q_out = q(state)
@@ -53,24 +58,9 @@ def train(q, q_target, memory, optimizer):
        param.grad.data.clamp_(-1, 1)
     optimizer.step()
 
-    return mse
-
-def log(epoch, total_steps, info, mse, writer):
-    # to_file
-    #print(f"{epoch},{total_steps},{info[0]},{info[1]},{info[2]},{info[3]},{info[4]}", file=f)
-    #f.flush()
-
-    # tensorboard
-    # writer.add_scalar('env_metrics/mean_waiting', info[2], total_steps)
-    # writer.add_scalar('env_metrics/mean_queue', info[3], total_steps)
-    # writer.add_scalar('env_metrics/mean_reward', info[6], total_steps)
-    writer.add_scalar('loss/loss', mse, total_steps) # 4 5
-    #writer.flush()
-
-
 if __name__ == '__main__':
     q = DQNetwork()
-    #q = FCQNetwork()
+
     try:
         q.load_state_dict(torch.load(WEIGHTS_PATH))
     except FileNotFoundError:
@@ -78,20 +68,19 @@ if __name__ == '__main__':
         print('No model weights found, initializing xavier_uniform')
 
     q_target = DQNetwork()
-    #q_target = FCQNetwork()
     q_target.load_state_dict(q.state_dict())
 
-    memory = DQNBuffer(BUFFER_LIMIT, 0.02)
+    memory = DQNBuffer(BUFFER_LIMIT, 0.)
 
     env = SumoIntersection(sumoBinary, sumoCmd, SIM_LEN, N_CARS)
     optimizer = torch.optim.RMSprop(q.parameters(), lr=LEARNING_RATE)
 
-    writer = SummaryWriter(logdir=f'/home/thelak-dev/tldqn/TCA-DQN/src/logs/{int(datetime.now().timestamp())}', flush_secs=1)
-
+    state = StoreState()
     min_wait = float('inf')
     mse_mean = 0
     total_steps=0
     pbar = tqdm(total=EPOCHS)
+
     for epoch in np.arange(EPOCHS):
         eps = max(0.01, 0.07 - 0.01*(epoch/200))
         step = 0
@@ -102,40 +91,27 @@ if __name__ == '__main__':
         state, _, _, _ = env.step(0)
         done = False
 
-        start_time = time.time()
         done_mask = 1.0
-        pbar.set_description(f'EPOCH: {epoch}')
+        pbar.set_description(f'EPOCH: {epoch}, mean reward: {info[6]}, mean waiting time: {info[2]}')
         mse = 0
         while not done:
             with torch.no_grad():
                 a = q.predict(state.as_tuple, eps)
-            state_prime, r, done, info = env.step(a)
+            state, r, done, info = env.step(a) # storing prime state
 
             if done:
                 done_mask = 0.0
 
             if r != 0 or step > 60:
                 memory.add((state.position, state.speed,
-                            state.tl, state_prime.position,
-                            state_prime.speed, state_prime.tl,
-                            a, r, done_mask))
-                if epoch < 16:
-                    memory.add_positive((state.position, state.speed,
-                            state.tl, state_prime.position,
-                            state_prime.speed, state_prime.tl,
-                            a, r, done_mask))
+                    state.tl, state.p_position,
+                    state.p_speed, state.p_tl,
+                    a, r, done_mask))
 
-
-            state = state_prime
+            state.swap()  # state = state_prime
 
             if memory.size > BATCH_SIZE:
-                mse = train(q, q_target, memory, optimizer)
-
-            #if total_steps % C == 0 and total_steps != 0:
-            #    q_target.load_state_dict(q.state_dict())
-
-            #if step % PRINT == 0:
-            log(epoch, total_steps, info, mse, writer)
+                train_net(q, q_target, memory, optimizer)
            
             step += 1
             total_steps += 1
@@ -145,23 +121,14 @@ if __name__ == '__main__':
             memory.refill()
         pbar.update(1)
         
-        if epoch % C == 0 and total_steps != 0:
-            q_target.load_state_dict(q.state_dict())
+        # soft update weights at the end of epoch
+        soft_update(q, q_target, 0.01) )
 
-        writer.add_scalar('env_metrics/mean_waiting', info[2], epoch)
-        writer.add_scalar('env_metrics/mean_queue', info[3], epoch)
-        writer.add_scalar('env_metrics/mean_reward', info[6], epoch)
-
-        writer.add_scalar('env_metrics/cum_waiting', info[4], epoch)
-        writer.add_scalar('env_metrics/cum_queue', info[5], epoch)
-        writer.add_scalar('env_metrics/cum_reward', info[7], epoch)
-        writer.add_scalar('env_status/n_cars', info[-1], epoch)
-        writer.add_scalar('env_status/randomess', eps, epoch) 
-
-        if info[4] < min_wait and epoch > 50:
-            torch.save(q.state_dict(), f'/home/thelak-dev/tldqn/exp2/TLC-DQN/model/dqn_cnn_{epoch}.pt')
-            min_wait = info[4]
+        if info[4]/info[5] < min_wait and epoch > 50:
+            torch.save(q.state_dict(), f'../model/dqn_{epoch}.pt')
+            min_wait = info[4]/info[5]
         if epoch == 1599:
-            torch.save(q.state_dict(), f'/home/thelak-dev/tldqn/exp2/TLC-DQN/model/dqn_cnn_{epoch}.pt')
+            torch.save(q.state_dict(), f'../model/dqn_{epoch}_final.pt')
 
     print('finished training')
+

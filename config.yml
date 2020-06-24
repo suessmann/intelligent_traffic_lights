@@ -10,6 +10,6 @@ n_cars: 1000
 weights_path: ''
 
 # SUMO params
-sumoBinary: "/usr/local/opt/sumo/share/sumo/bin/sumo-gui"
-sumoCmd: "/Users/suess_mann/wd/tcqdrl/intelligent_traffic_lights/src/cfg/sumo_config.sumocfg"
-sumoTools: "/usr/local/opt/sumo/share/sumo/tools"
+sumoBinary: ""
+sumoCmd: ""
+sumoTools: ""

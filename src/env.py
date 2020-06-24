@@ -1,10 +1,16 @@
-import traci
 import numpy as np
-import random
-import torch
+import sys, os
 from collections import deque
-from generator import generate
-from data_storage import StoreState
+from src.generator import generate
+from src.data_storage import StoreState
+
+if 'SUMO_HOME' in os.environ:
+    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
+    sys.path.append(tools)
+else:
+    sys.exit("please declare environment variable 'SUMO_HOME'")
+
+import traci
 
 PHASE_NS_GREEN = 0
 PHASE_NS_YELLOW = 1

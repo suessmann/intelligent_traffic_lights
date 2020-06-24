@@ -1,8 +1,8 @@
 import random
 import torch
 import numpy as np
-from data_storage import StoreState
-from collections import deque, namedtuple
+from src.data_storage import StoreState
+from collections import deque
 
 
 class DQNBuffer:

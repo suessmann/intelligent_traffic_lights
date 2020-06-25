@@ -70,11 +70,11 @@ When the load is at peak, on average 117 seconds a vehicle waits in the que (CNN
 high load with no problem.
 
 # Future work
-- [] Refactor code
-- [] Parallel code
-- [] Try actor-critic model (i.e. d4pg)
-- [] Manage several intersections
-- [] Obtain a GPU...
+- [ ] Refactor code
+- [ ] Parallel code
+- [ ] Try actor-critic model (i.e. d4pg)
+- [ ] Manage several intersections
+- [ ] Obtain a GPU...
 
 # References
 Genders, Wade, and Saiedeh Razavi. "Using a deep reinforcement learning agent for traffic signal control." arXiv preprint arXiv:1611.01142 (2017).

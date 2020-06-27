@@ -42,6 +42,7 @@ trained, both with 1600 epochs, 4500 steps each (1.15 hours). Those models were 
 hours for each of them.
 
 # Results
+[Youtube video with comparison](https://www.youtube.com/watch?v=yIhDWvMrWFo)
 For testing purposes, three scenarios were generated with 800, 1300, 1800 cars. They represent three possible states
 of the road during low load, mid and peak-hour accordingly. The results for each are presented in the table below.
 

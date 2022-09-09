@@ -1,3 +1,5 @@
+Status: Archived (no further updates in repo)
+
 # Traffic Signal Control with Reinforcement Learning
 This repository contains my project on intelligent traffic lights control. It relies on a Deep Q-network algorithm
  with a few convolutional layers.
